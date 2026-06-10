@@ -1,7 +1,8 @@
 // Server-side Gemini caller. The API key lives only here (env), never on the
 // client — this is the whole point of the Pro AI proxy.
 const API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+// gemini-2.0-flash no longer has free-tier quota (limit 0) — 2.5-flash-lite does.
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
 
 // Calls Gemini generateContent and returns the model's text (expected JSON
 // when a schema is supplied). Throws on HTTP / API errors.
