@@ -44,6 +44,18 @@ describe("privacyClassifier", () => {
       level: "blocked_sensitive",
       types: ["email"],
     },
+    {
+      name: "B4.1 safe quantity k suffix not money",
+      text: "cần mua 100k viên gạch cho tầng 3",
+      level: "safe_to_template",
+      types: [],
+    },
+    {
+      name: "B4.1 safe HD display size not contract",
+      text: "HD 65 inch treo phòng họp",
+      level: "safe_to_template",
+      types: [],
+    },
   ];
 
   for (const a of anchors) {

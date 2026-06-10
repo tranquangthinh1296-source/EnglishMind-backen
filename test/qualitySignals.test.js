@@ -1,6 +1,7 @@
 const { describe, it, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
 const { recordSignal, WEIGHTS } = require("../src/services/qualitySignals");
+const { templateSignalSchema } = require("../src/routes/betaOps");
 
 const TEMPLATE_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -125,5 +126,21 @@ describe("qualitySignals", () => {
       userKey: "u",
     });
     assert.equal(result.notFound, true);
+  });
+
+  it("like without userKey → schema rejects", () => {
+    const parsed = templateSignalSchema.safeParse({
+      templateId: TEMPLATE_ID,
+      eventType: "like",
+    });
+    assert.equal(parsed.success, false);
+  });
+
+  it("save without userKey → schema rejects", () => {
+    const parsed = templateSignalSchema.safeParse({
+      templateId: TEMPLATE_ID,
+      eventType: "save",
+    });
+    assert.equal(parsed.success, false);
   });
 });

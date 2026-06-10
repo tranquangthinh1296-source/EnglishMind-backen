@@ -25,19 +25,6 @@ async function recordSignal(pool, { templateId, eventType, userKey }) {
     throw new Error(`unknown_event_type:${eventType}`);
   }
 
-  if (DEDUP_EVENT_TYPES.has(eventType) && userKey) {
-    const dup = await pool.query(
-      `SELECT 1 FROM template_quality_signals
-       WHERE template_id = $1 AND user_key = $2 AND event_type = $3
-         AND created_at > NOW() - INTERVAL '1 day'
-       LIMIT 1`,
-      [templateId, userKey, eventType]
-    );
-    if (dup.rows.length) {
-      return { deduped: true };
-    }
-  }
-
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -46,6 +33,20 @@ async function recordSignal(pool, { templateId, eventType, userKey }) {
     if (!exists.rows.length) {
       await client.query("ROLLBACK");
       return { notFound: true };
+    }
+
+    if (DEDUP_EVENT_TYPES.has(eventType) && userKey) {
+      const dup = await client.query(
+        `SELECT 1 FROM template_quality_signals
+         WHERE template_id = $1 AND user_key = $2 AND event_type = $3
+           AND created_at > NOW() - INTERVAL '1 day'
+         LIMIT 1`,
+        [templateId, userKey, eventType]
+      );
+      if (dup.rows.length) {
+        await client.query("ROLLBACK");
+        return { deduped: true };
+      }
     }
 
     await client.query(

@@ -76,18 +76,28 @@ const usageSchema = z.object({
   appVersion: z.string().max(40).optional(),
 });
 
-const templateSignalSchema = z.object({
-  templateId: z.string().uuid(),
-  eventType: z.enum([
-    "copy",
-    "save",
-    "like",
-    "reuse",
-    "edit_after_generate",
-    "report_wrong",
-  ]),
-  userKey: z.string().max(128).optional(),
-});
+const templateSignalSchema = z
+  .object({
+    templateId: z.string().uuid(),
+    eventType: z.enum([
+      "copy",
+      "save",
+      "like",
+      "reuse",
+      "edit_after_generate",
+      "report_wrong",
+    ]),
+    userKey: z.string().max(128).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if ((data.eventType === "like" || data.eventType === "save") && !data.userKey) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "userKey required for like/save",
+        path: ["userKey"],
+      });
+    }
+  });
 
 function parseBody(schema, req, res) {
   const result = schema.safeParse(req.body || {});
@@ -266,3 +276,4 @@ router.use("/v1", (err, _req, res, next) => {
 });
 
 module.exports = router;
+module.exports.templateSignalSchema = templateSignalSchema;

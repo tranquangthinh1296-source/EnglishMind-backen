@@ -1,10 +1,14 @@
 const crypto = require("crypto");
 
+const MONEY_UNIT_PATTERN = /\d[\d.,]*\s*(tỷ|ty|triệu|trieu|tr\b|vnd|vnđ|đ\b|dong|usd|\$)/i;
+const MONEY_K_PATTERN =
+  /\d[\d.,]*\s*k\b(?!\s*(viên|vien|cái|cai|m2|m3|tấn|tan|cột|cot|chiếc|chiec))/i;
+
 const PATTERNS = {
   email: /[\w.+-]+@[\w-]+\.[\w.]{2,}/,
   phone_vn: /(\+?84|0)(\d[\s.]?){8,10}\d/,
-  money: /\d[\d.,]*\s*(tỷ|ty|triệu|trieu|tr\b|k\b|vnd|vnđ|đ\b|dong|usd|\$)/i,
-  contract_number: /(hợp đồng|hop dong|contract|HĐ|HD)[\s:#\-]*[\w\/]*\d+/i,
+  contract_number:
+    /(HĐ|HD)\s*[:#\-\/]+\s*[\w\/]*\d+|(hợp đồng|hop dong|contract)[\s:#\-]*[\w\/]*\d+/i,
   project_name: /(dự án|du an|project)\s+[A-ZÀ-Ỹ][\w\sÀ-ỹ]{2,30}/,
   address: /(số|so)\s+\d+[\w\/]*\s+(đường|duong|street|phố|pho)/i,
 };
@@ -18,6 +22,9 @@ function detectTypes(text) {
 
   for (const [type, regex] of Object.entries(PATTERNS)) {
     if (regex.test(text)) detected.push(type);
+  }
+  if (MONEY_UNIT_PATTERN.test(text) || MONEY_K_PATTERN.test(text)) {
+    detected.push("money");
   }
   if (text.length > 600) detected.push("long_sensitive_text");
   return detected;
