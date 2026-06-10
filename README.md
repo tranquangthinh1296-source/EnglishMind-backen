@@ -88,3 +88,29 @@ match /users/{uid}/tier/{doc} { allow read: if request.auth.uid == uid; allow wr
   over letting abuse through. Flip in `checkQuota.js` if you want fail-open.
 - To stop depending on the old content server, replace `routes/content.js`
   proxying with real handlers backed by your own data.
+
+## Beta Ops (task B1 — PLATFORM_SPEC §8, §11)
+
+New endpoints (auth = `X-EnglishMind-Beta-Key` header, storage = **PostgreSQL**, schema
+auto-created from `sql/001_beta_ops.sql` on first use):
+
+| Endpoint | Notes |
+|---|---|
+| `GET /health` | `{ok, service, env}` — contract of `BetaOpsClient.kt` |
+| `POST /v1/feedback` | category + message (+contact) → `beta_feedback` |
+| `POST /v1/bug-report` | safe metadata only → `beta_bug_report` |
+| `POST /v1/event` | eventType + safeMetadata (≤4KB) → `beta_event_log` |
+| `POST /v1/ai/can-use` | device daily guard, **fail-open** when DB down |
+| `POST /v1/ai/record-usage` | upsert `ai_usage_daily`, fail-soft |
+
+Env vars:
+
+- `BETA_OPS_KEY` — required, ≥24 chars (must equal client `BETA_OPS_API_SECRET`).
+- `DATABASE_URL` — Railway PostgreSQL connection string. Missing → writes return
+  503 `storage_unavailable`, can-use fails open.
+- `PGSSL=require` — set when using Railway's public proxy URL.
+- `BETA_DAILY_AI_LIMIT` (default 50), `BETA_OPS_RATE_LIMIT` (default 30/min/IP),
+  `QUOTA_TIMEZONE` (default Asia/Ho_Chi_Minh — shared with checkQuota).
+
+Security per §8.4: zod validation, helmet, rate limit, 64kb body cap on /v1,
+no raw-body logging, no stacktraces in responses.

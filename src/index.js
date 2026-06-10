@@ -4,16 +4,26 @@
 //   GET  /api/trial-status/:id      → signed trial status
 //   GET  /api/curricula, /lesson/:id, /vocabulary, /word/:w, /v1/tower/...  → content (proxied)
 //   POST /api/progress, /api/lesson → content writes (proxied)
+//   GET  /health                    → Beta Ops health ({ok, service, env} — BetaOpsClient)
+//   POST /v1/feedback, /v1/bug-report, /v1/event,
+//        /v1/ai/can-use, /v1/ai/record-usage → Beta Ops (B1, beta-key auth, PostgreSQL)
 //   GET  /healthz                   → health check
 // Load .env locally if dotenv is present; on Railway env vars are injected.
 try { require("dotenv").config(); } catch { /* dotenv optional */ }
 
 const express = require("express");
+const helmet = require("helmet");
 const aiRoutes = require("./routes/ai");
 const contentRoutes = require("./routes/content");
 const trialRoutes = require("./routes/trial");
+const betaOpsRoutes = require("./routes/betaOps");
 
 const app = express();
+app.use(helmet());
+
+// Beta Ops mounts BEFORE the global 2mb parser so its own 64kb limit applies to /v1.
+app.use(betaOpsRoutes);
+
 app.use(express.json({ limit: "2mb" }));
 
 // Health check (Railway / uptime probes).
