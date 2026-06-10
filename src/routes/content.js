@@ -3,6 +3,7 @@
 // Architecture: Firestore is source of truth; no CONTENT_UPSTREAM_URL needed.
 const express = require("express");
 const { db } = require("../firebase");
+const { generate } = require("../gemini");
 
 const router = express.Router();
 
@@ -193,14 +194,166 @@ router.get("/word/:word", async (req, res) => {
   }
 });
 
+// ── Vocab Tower: on-demand floor generation ──────────────────────────────────
+// Each floor is generated ONCE (one Gemini call), cached in Firestore
+// `tower_floors/{mode}_{floor}` and served to every user from then on.
+// The client downloads one floor at a time (round-by-round), so neither the
+// app bundle nor the user's token budget grows.
+
+const TOWER_THEMES = {
+  GENERAL: [
+    "Chào hỏi & Mô tả cơ bản", "Gia đình & Xã hội thường nhật",
+    "Dịch vụ ẩm thực & Ăn uống", "Du lịch, Phương tiện & Bản đồ",
+    "Học tập, Trường học & Kỹ năng", "Công việc & Giao tiếp công sở",
+    "Sức khỏe, Thể thao & Lối sống", "Điện ảnh, Nghệ thuật & Bản sắc",
+    "Công nghệ thông tin & Đổi mới", "Kinh doanh, Tài chính & Triết lý",
+  ],
+  SPECIALIZATION_QS: [
+    "Đo bóc & Lấy khối lượng", "Bảng tiên lượng BoQ & Vật liệu",
+    "Quản lý chi phí dự án", "Chi phí trực tiếp & gián tiếp",
+    "Hồ sơ mời thầu & Đấu thầu", "Hợp đồng & Điều kiện FIDIC",
+    "Tranh chấp & Lệnh thay đổi (VO)", "Thanh toán đợt & Nghiệm thu",
+    "Kháng nghị & Trọng tài", "Quyết toán & Đối chiếu số liệu",
+  ],
+  SPECIALIZATION_ARCH: [
+    "Nhập môn kiến trúc & Bản vẽ", "Cấu kiện công trình & Kết cấu",
+    "Vỏ bao che & Vật liệu", "Quy trình thiết kế & Briefing",
+    "Phân tích khu đất & Quy hoạch", "Hệ kết cấu & MEP",
+    "Hồ sơ thi công & Quy chuẩn", "Thiết kế bền vững",
+    "BIM & Công cụ số", "Hành nghề & Thuyết trình với khách hàng",
+  ],
+  SPECIALIZATION_INTERIOR: [
+    "Nhập môn thiết kế nội thất", "Quy hoạch không gian & Zoning",
+    "Màu sắc & Bảng vật liệu", "Đồ nội thất & FF&E",
+    "Thiết kế chiếu sáng", "Đọc bản vẽ nội thất",
+    "Briefing & Concept với khách", "Quản lý dự án & Ngân sách",
+    "Nội thất thương mại & Khách sạn", "Hồ sơ năng lực & Đề xuất",
+  ],
+};
+
+const TOWER_MODE_BRIEF = {
+  GENERAL:
+    "tiếng Anh GIAO TIẾP thông dụng hằng ngày. Bắt buộc trộn: từ đơn (WORD), " +
+    "cụm từ/phrasal verbs/collocations (PHRASE) và các CÁCH DIỄN ĐẠT Ý tự nhiên " +
+    "người bản xứ hay dùng (PHRASE), cùng động từ thiết yếu (VERB).",
+  SPECIALIZATION_QS:
+    "tiếng Anh chuyên ngành Quantity Surveying (QS): đo bóc khối lượng, BoQ, " +
+    "hợp đồng FIDIC, chi phí, đấu thầu, thanh toán, quyết toán xây dựng.",
+  SPECIALIZATION_ARCH:
+    "tiếng Anh chuyên ngành Kiến trúc: thiết kế, bản vẽ, cấu kiện, vật liệu, " +
+    "quy chuẩn xây dựng, BIM, hành nghề kiến trúc sư.",
+  SPECIALIZATION_INTERIOR:
+    "tiếng Anh chuyên ngành Thiết kế Nội thất: không gian, vật liệu hoàn thiện, " +
+    "FF&E, chiếu sáng, concept, làm việc với khách hàng.",
+};
+
+function towerCefrForFloor(floor) {
+  if (floor <= 20) return "A1-A2";
+  if (floor <= 60) return "A2-B1";
+  return "B1-C1";
+}
+
+function towerThemeForFloor(mode, floor) {
+  const list = TOWER_THEMES[mode] || TOWER_THEMES.GENERAL;
+  return list[Math.min(Math.floor((floor - 1) / 10), 9)];
+}
+
+const TOWER_UNIT_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    units: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          type: { type: "STRING", description: "WORD | PHRASE | VERB | QA | SCENARIO" },
+          content: { type: "STRING", description: "English word/phrase/expression, or question text for QA/SCENARIO" },
+          ipa: { type: "STRING" },
+          meaningVi: { type: "STRING" },
+          meaningEn: { type: "STRING", description: "For QA: the correct English answer" },
+          partOfSpeech: { type: "STRING" },
+          exampleEn: { type: "STRING" },
+          exampleVi: { type: "STRING" },
+          options: { type: "ARRAY", items: { type: "STRING" }, description: "SCENARIO only: exactly 3 answer options" },
+          correctOptionIndex: { type: "INTEGER", description: "SCENARIO only: 0-based index of the correct option" },
+        },
+        required: ["type", "content", "meaningVi", "exampleEn", "exampleVi"],
+      },
+    },
+  },
+  required: ["units"],
+};
+
+async function generateTowerFloor(towerMode, floorNumber) {
+  const theme = towerThemeForFloor(towerMode, floorNumber);
+  const cefr = towerCefrForFloor(floorNumber);
+  const isGeneral = towerMode === "GENERAL";
+  const mix = isGeneral
+    ? "Đúng 30 unit: 14 WORD, 12 PHRASE (cụm từ, collocation, cách diễn đạt ý), 4 VERB."
+    : "Đúng 30 unit: 15 WORD, 8 PHRASE, 4 VERB, 2 QA (câu hỏi chuyên môn + đáp án trong meaningEn), 1 SCENARIO (tình huống thực tế, 3 options, correctOptionIndex).";
+
+  const prompt =
+    `Tạo nội dung tầng ${floorNumber}/100 của tháp từ vựng về ${TOWER_MODE_BRIEF[towerMode]}\n` +
+    `Chủ đề tầng: ${theme}. Trình độ CEFR: ${cefr} (tầng càng cao càng khó dần).\n` +
+    `${mix}\n` +
+    `Mỗi unit có nghĩa tiếng Việt tự nhiên, IPA, câu ví dụ thực tế EN + bản dịch VI. Không trùng lặp nội dung.`;
+
+  const text = await generate({
+    prompt,
+    systemInstruction:
+      "Bạn là chuyên gia thiết kế giáo trình tiếng Anh cho người Việt. Trả về JSON đúng schema.",
+    schemaJson: TOWER_UNIT_SCHEMA,
+  });
+
+  const parsed = JSON.parse(text);
+  const units = (parsed.units || []).slice(0, 30).map((u, idx) => ({
+    id: `${towerMode}_${floorNumber}_${idx}`,
+    type: u.type || "WORD",
+    content: u.content,
+    ipa: u.ipa || "",
+    meaningVi: u.meaningVi || "",
+    meaningEn: u.meaningEn || "",
+    partOfSpeech: u.partOfSpeech || (u.type === "PHRASE" ? "PHRASE" : "NOUN"),
+    exampleEn: u.exampleEn || "",
+    exampleVi: u.exampleVi || "",
+    frequencyRank: idx + 1,
+    questionData: Array.isArray(u.options) && u.options.length > 0 ? JSON.stringify(u.options) : null,
+    correctAnswer: u.correctOptionIndex != null ? String(u.correctOptionIndex) : null,
+  }));
+
+  if (units.length === 0) throw new Error("Gemini returned no units");
+  return { floorNumber, towerMode, theme, cefrLevel: cefr, units };
+}
+
+// De-duplicate concurrent generation requests for the same floor.
+const towerGenInFlight = new Map();
+
 router.get("/v1/tower/:towerMode/:floorNumber", async (req, res) => {
+  const towerMode = req.params.towerMode;
+  const floorNumber = parseInt(req.params.floorNumber, 10);
+  if (!TOWER_THEMES[towerMode] || !(floorNumber >= 1 && floorNumber <= 100)) {
+    return res.status(400).json({ status: "bad_request", data: null });
+  }
+  const id = `${towerMode}_${floorNumber}`;
   try {
-    const { towerMode, floorNumber } = req.params;
-    const id = `${towerMode}_${floorNumber}`;
     const doc = await db.collection("tower_floors").doc(id).get();
-    if (!doc.exists) return res.status(404).json({ status: "not_found", data: null });
-    res.json({ status: "ok", data: doc.data() });
+    if (doc.exists) return res.json({ status: "success", data: doc.data() });
+
+    // Not cached yet → generate once and persist for everyone.
+    let pending = towerGenInFlight.get(id);
+    if (!pending) {
+      pending = generateTowerFloor(towerMode, floorNumber)
+        .then(async (data) => {
+          await db.collection("tower_floors").doc(id).set({ ...data, generatedAt: Date.now() });
+          return data;
+        })
+        .finally(() => towerGenInFlight.delete(id));
+      towerGenInFlight.set(id, pending);
+    }
+    const data = await pending;
+    res.json({ status: "success", data });
   } catch (e) {
+    console.error(`[content] tower ${id}:`, e.message);
     res.status(500).json({ status: "error", data: null });
   }
 });
