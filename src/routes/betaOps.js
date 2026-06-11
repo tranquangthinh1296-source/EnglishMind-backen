@@ -216,6 +216,9 @@ router.post("/v1/admin/feedback-digest", async (req, res) => {
     async (pool) => {
       try {
         const result = await sendFeedbackDigest(pool, hours);
+        if (!result.sent) {
+          return res.json({ ok: true, ...result });
+        }
         res.json({ ok: true, ...result });
       } catch (err) {
         console.error("[betaOps] feedback digest email failed:", err.message);

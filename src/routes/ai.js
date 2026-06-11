@@ -1,32 +1,82 @@
-// POST api/ai/generate — Pro AI proxy.
-// Pipeline: verifyAuth (T37-BE) → checkQuota (T38-BE) → Gemini.
-//
-// Client body (EnglishMindRepository.callGeminiJson):
-//   { task, prompt, systemInstruction, schemaJson }
-// Client parses the response as either a raw JSON string, or an object with
-// { success:false, error } / { data:"<json>" } / { responseText:"<json>" }.
 const express = require("express");
 const { verifyAuth } = require("../middleware/verifyAuth");
 const { checkQuota } = require("../middleware/checkQuota");
-const { generate } = require("../gemini");
+const { generate, MODEL } = require("../gemini");
 
 const router = express.Router();
 
+function logAiCallMeta({ taskType, plan, quotaCost, success, errorCode, latencyMs, cacheHit = false }) {
+  console.log(
+    JSON.stringify({
+      event: "ai_call",
+      taskType,
+      plan,
+      quotaCost,
+      provider: "gemini",
+      model: MODEL,
+      latencyMs,
+      cacheHit,
+      success,
+      errorCode: errorCode || null,
+      quotaBlocked: errorCode === "quota_exceeded",
+      upstreamError: errorCode === "ai_upstream_error",
+    }),
+  );
+}
+
 router.post("/ai/generate", verifyAuth, checkQuota, async (req, res) => {
-  const { prompt, systemInstruction, schemaJson } = req.body || {};
+  const { taskType, prompt, systemInstruction, schemaJson, schemaVersion } = req.body || {};
+  const started = Date.now();
+
+  if (!prompt || !systemInstruction || !schemaJson) {
+    if (req.refundQuota) await req.refundQuota();
+    return res.status(400).json({
+      success: false,
+      error: "invalid_request",
+      errorMessage: "Thiếu prompt, systemInstruction hoặc schemaJson.",
+    });
+  }
 
   try {
     const data = await generate({ prompt, systemInstruction, schemaJson });
-    return res.json({ success: true, data });
+    if (req.incrementDailyStats) {
+      await req.incrementDailyStats({ cacheMisses: 1 });
+    }
+    const latencyMs = Date.now() - started;
+    logAiCallMeta({
+      taskType,
+      plan: req.plan,
+      quotaCost: req.quota?.cost,
+      success: true,
+      latencyMs,
+    });
+    return res.json({
+      success: true,
+      data,
+      quota: req.quota,
+      provider: { id: "gemini", model: MODEL },
+    });
   } catch (e) {
-    // Don't burn a quota unit for our own failure.
     if (req.refundQuota) await req.refundQuota();
-    console.error("[ai/generate] Gemini call failed:", e.status || "", e.message, e.detail || "");
+    if (req.incrementDailyStats) {
+      await req.incrementDailyStats({ upstreamErrorCount: 1, cacheMisses: 1 });
+    }
+    const latencyMs = Date.now() - started;
+    const errorCode = e.status === 429 ? "ai_upstream_error" : "ai_upstream_error";
+    logAiCallMeta({
+      taskType,
+      plan: req.plan,
+      quotaCost: req.quota?.cost,
+      success: false,
+      errorCode,
+      latencyMs,
+    });
+    console.error("[ai/generate] upstream failed:", e.status || "", e.message);
     const status = e.status === 429 ? 429 : 502;
     return res.status(status).json({
       success: false,
-      error: "ai_upstream_error",
-      errorMessage: "Không gọi được AI. Vui lòng thử lại.",
+      error: errorCode,
+      errorMessage: "Cô Vy đang mất kết nối với AI. Anh vẫn có thể học bài đã lưu offline.",
     });
   }
 });

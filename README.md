@@ -60,7 +60,7 @@ its path.
 A request to `/api/ai/generate` is allowed when the verified token has either:
 
 - custom claim `admin: true`, **or**
-- Firestore `users/{uid}/tier/current.tier` ∈ `{PRO, LIFETIME, PRO_AI}`.
+- Firestore `users/{uid}/tier/current.tier` ∈ `{PRO, PRO_AI}`.
 
 Otherwise → `403 no_entitlement`. Missing/invalid token → `401`.
 Over quota → `429 quota_exceeded`. The client already understands
@@ -102,21 +102,25 @@ auto-created from `sql/001_beta_ops.sql` on first use):
 | `POST /v1/event` | eventType + safeMetadata (≤4KB) → `beta_event_log` |
 | `POST /v1/ai/can-use` | device daily guard, **fail-open** when DB down |
 | `POST /v1/ai/record-usage` | upsert `ai_usage_daily`, fail-soft |
-| `POST /v1/admin/feedback-digest` | send **digest email** of recent feedback to `FEEDBACK_NOTIFY_TO` (Cron) |
+| `POST /v1/admin/feedback-digest` | gửi **1 email tổng hợp** feedback N giờ gần nhất tới `FEEDBACK_NOTIFY_TO` (Cron) |
 
-### Feedback email (owner inbox)
+### Feedback → email owner (scale)
+
+Không cần đọc Postgres/CLI khi có hàng trăm user:
 
 1. Railway **Variables**: `FEEDBACK_NOTIFY_TO`, `SMTP_*`, `FEEDBACK_EMAIL_MODE=digest`
-2. Schedule daily Cron (e.g. 8:00 VN):
+2. **Cron** (Railway hoặc cron-job.org), mỗi sáng 8h:
 
 ```bash
 curl -s -X POST "https://YOUR-RAILWAY-URL/v1/admin/feedback-digest" \
-  -H "X-EnglishMind-Beta-Key: $BETA_OPS_KEY" \
+  -H "X-EnglishMind-Beta-Key: YOUR_BETA_OPS_KEY" \
   -H "Content-Type: application/json" \
   -d '{"hours":24}'
 ```
 
-3. `FEEDBACK_EMAIL_MODE=instant` → one email per feedback (small beta only, &lt;20/day).
+3. `FEEDBACK_EMAIL_MODE=instant` → mỗi feedback 1 email (chỉ beta nhỏ &lt;20/ngày).
+
+Email tự ẩn SĐT/email trong nội dung nhạy cảm (privacy classifier).
 
 Env vars:
 

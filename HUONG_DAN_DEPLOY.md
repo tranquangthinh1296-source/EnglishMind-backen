@@ -172,7 +172,7 @@ Bấm **"Publish"** để lưu.
 | App báo lỗi AI / không phản hồi | Kiểm tra đã nhập đúng **URL SERVER MỚI** trong Settings chưa (E1); thử lại `/healthz`. |
 | AI báo hết lượt dù chưa dùng | Kiểm tra `PRO_PROXY_DAILY_LIMIT` (nên là `1000`). |
 | AI không chạy với tài khoản của bạn | Kiểm tra đã tạo đúng `users/{UID}/tier/current` với `tier="PRO"` (E2) chưa. |
-| Deploy đỏ (Failed) trên Railway | Kiểm tra **Root Directory = `server`** và **Start Command = `npm start`** (C3). |
+| Deploy đỏ (Failed) trên Railway | **EnglishMind-backen:** Root Directory **trống**, Start `npm start`. Lỗi `server does not exist` = đang trỏ nhầm monorepo. |
 
 > Nếu vẫn kẹt: chụp màn hình phần log đỏ trên Railway và phần Variables (che bớt giá trị bí mật), gửi lại để được hỗ trợ.
 
