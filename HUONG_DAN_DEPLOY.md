@@ -65,12 +65,12 @@ Railway là dịch vụ "máy chủ thuê" miễn phí/giá rẻ để chạy se
 3. Nếu lần đầu, Railway xin quyền xem GitHub → bấm **"Configure GitHub App"** → chọn repo **EnglishMind** → **Save**.
 4. Quay lại Railway, chọn đúng repo **EnglishMind** trong danh sách.
 
-### C3. ⚠️ QUAN TRỌNG: chỉ định thư mục `server`
-Vì repo có cả app Android lẫn server, phải nói cho Railway biết chạy thư mục `server`:
+### C3. ⚠️ QUAN TRỌNG: Root Directory
+Repo **EnglishMind-backen** chỉ có backend — `package.json` ở **gốc repo**, không có thư mục `server/`.
 1. Sau khi chọn repo, Railway tạo 1 "service". Bấm vào service đó.
 2. Vào tab **"Settings"**.
-3. Tìm mục **"Root Directory"** (Thư mục gốc) → bấm sửa → gõ: `server` → lưu.
-4. Tìm mục **"Start Command"** (Lệnh khởi động). Nếu trống, gõ: `npm start` → lưu.
+3. **Root Directory** để **trống** (hoặc `/`) — **KHÔNG** gõ `server` (lỗi `snapshot-target-unpack/server does not exist`).
+4. **Start Command:** `npm start` (hoặc để Railway đọc `railway.json`).
 
 > Lúc này Railway có thể báo deploy lỗi vì **chưa có biến môi trường** — bình thường, ta làm tiếp Phần D.
 
