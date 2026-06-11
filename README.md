@@ -102,6 +102,21 @@ auto-created from `sql/001_beta_ops.sql` on first use):
 | `POST /v1/event` | eventType + safeMetadata (≤4KB) → `beta_event_log` |
 | `POST /v1/ai/can-use` | device daily guard, **fail-open** when DB down |
 | `POST /v1/ai/record-usage` | upsert `ai_usage_daily`, fail-soft |
+| `POST /v1/admin/feedback-digest` | send **digest email** of recent feedback to `FEEDBACK_NOTIFY_TO` (Cron) |
+
+### Feedback email (owner inbox)
+
+1. Railway **Variables**: `FEEDBACK_NOTIFY_TO`, `SMTP_*`, `FEEDBACK_EMAIL_MODE=digest`
+2. Schedule daily Cron (e.g. 8:00 VN):
+
+```bash
+curl -s -X POST "https://YOUR-RAILWAY-URL/v1/admin/feedback-digest" \
+  -H "X-EnglishMind-Beta-Key: $BETA_OPS_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"hours":24}'
+```
+
+3. `FEEDBACK_EMAIL_MODE=instant` → one email per feedback (small beta only, &lt;20/day).
 
 Env vars:
 

@@ -9,6 +9,7 @@ const rateLimit = require("express-rate-limit");
 const betaKey = require("../middleware/betaKey");
 const { isDbConfigured, getPool, ensureBetaOpsSchema, ensureWarehouseSchema } = require("../db");
 const { recordSignal } = require("../services/qualitySignals");
+const { notifyFeedbackInstant, sendFeedbackDigest } = require("../services/feedbackNotify");
 
 const router = express.Router();
 
@@ -135,10 +136,13 @@ router.post("/v1/feedback", async (req, res) => {
     async (pool) => {
       const { rows } = await pool.query(
         `INSERT INTO beta_feedback (app_version, android_version, device_model, device_hash, category, message, contact)
-         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         RETURNING id, created_at, app_version, android_version, device_model, device_hash, category, message, contact`,
         [data.appVersion, data.androidVersion, data.deviceModel, data.deviceHash, data.category, data.message, data.contact]
       );
-      res.status(201).json({ ok: true, id: rows[0].id });
+      const row = rows[0];
+      notifyFeedbackInstant(row);
+      res.status(201).json({ ok: true, id: row.id });
     },
     () => res.status(503).json({ ok: false, error: "storage_unavailable" })
   );
@@ -199,6 +203,24 @@ router.post("/v1/template-signal", async (req, res) => {
       const body = { ok: true };
       if (result.deduped) body.deduped = true;
       res.json(body);
+    },
+    () => res.status(503).json({ ok: false, error: "storage_unavailable" })
+  );
+});
+
+// --- POST /v1/admin/feedback-digest — owner inbox (Railway Cron + Beta-Key). ---
+router.post("/v1/admin/feedback-digest", async (req, res) => {
+  const hours = req.body?.hours;
+  await withDb(
+    res,
+    async (pool) => {
+      try {
+        const result = await sendFeedbackDigest(pool, hours);
+        res.json({ ok: true, ...result });
+      } catch (err) {
+        console.error("[betaOps] feedback digest email failed:", err.message);
+        res.status(500).json({ ok: false, error: "email_failed" });
+      }
     },
     () => res.status(503).json({ ok: false, error: "storage_unavailable" })
   );
