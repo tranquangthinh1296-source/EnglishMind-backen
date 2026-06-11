@@ -65,12 +65,12 @@ Railway là dịch vụ "máy chủ thuê" miễn phí/giá rẻ để chạy se
 3. Nếu lần đầu, Railway xin quyền xem GitHub → bấm **"Configure GitHub App"** → chọn repo **EnglishMind** → **Save**.
 4. Quay lại Railway, chọn đúng repo **EnglishMind** trong danh sách.
 
-### C3. ⚠️ QUAN TRỌNG: Root Directory
-Repo **EnglishMind-backen** chỉ có backend — `package.json` ở **gốc repo**, không có thư mục `server/`.
+### C3. ⚠️ QUAN TRỌNG: Root Directory = `server`
+Code backend nằm trong thư mục **`server/`** (giống monorepo Android).
 1. Sau khi chọn repo, Railway tạo 1 "service". Bấm vào service đó.
 2. Vào tab **"Settings"**.
-3. **Root Directory** để **trống** (hoặc `/`) — **KHÔNG** gõ `server` (lỗi `snapshot-target-unpack/server does not exist`).
-4. **Start Command:** `npm start` (hoặc để Railway đọc `railway.json`).
+3. **Root Directory** → gõ: `server` → lưu.
+4. **Start Command:** `npm start` (hoặc để Railway đọc `server/railway.json`).
 
 > Lúc này Railway có thể báo deploy lỗi vì **chưa có biến môi trường** — bình thường, ta làm tiếp Phần D.
 
@@ -172,7 +172,7 @@ Bấm **"Publish"** để lưu.
 | App báo lỗi AI / không phản hồi | Kiểm tra đã nhập đúng **URL SERVER MỚI** trong Settings chưa (E1); thử lại `/healthz`. |
 | AI báo hết lượt dù chưa dùng | Kiểm tra `PRO_PROXY_DAILY_LIMIT` (nên là `1000`). |
 | AI không chạy với tài khoản của bạn | Kiểm tra đã tạo đúng `users/{UID}/tier/current` với `tier="PRO"` (E2) chưa. |
-| Deploy đỏ (Failed) trên Railway | **EnglishMind-backen:** Root Directory **trống**, Start `npm start`. Lỗi `server does not exist` = đang trỏ nhầm monorepo. |
+| Deploy đỏ `server does not exist` | Chưa pull repo mới — cần commit có thư mục `server/`. Root Directory = `server`, Start `npm start`. |
 
 > Nếu vẫn kẹt: chụp màn hình phần log đỏ trên Railway và phần Variables (che bớt giá trị bí mật), gửi lại để được hỗ trợ.
 
