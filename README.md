@@ -47,13 +47,32 @@ its path.
 
 ## Deploy to Railway
 
-1. New service → Deploy from repo, **root directory = `server`**.
+1. New service → Deploy from repo, **root directory = `server`**. Railway uses
+   `server/Dockerfile` so `whisper-cli` and the default GGML model are available
+   for server-side STT.
 2. Set Variables (from `.env.example`): `GEMINI_API_KEY`, `GEMINI_MODEL`,
    `FIREBASE_SERVICE_ACCOUNT` (paste full JSON), `PRO_PROXY_DAILY_LIMIT`,
    `QUOTA_TIMEZONE`, `CONTENT_UPSTREAM_URL`, `TRIAL_SIGNING_SECRET`.
+   Keep `SERVER_STT_ENABLED=false` until the `/api/stt/transcribe` benchmark is
+   under 5s for short clips; then set it to `true`.
 3. Start command: `npm start` (Railway auto-detects). `PORT` is injected.
 4. Point the app's `contentServerUrl` at the new Railway URL (Settings screen or
    `DataStoreManager` default).
+
+### Server-side STT (VOICE-STT-SERVER-1)
+
+`POST /api/stt/transcribe` is fail-closed by default. Required env:
+
+| Variable | Default | Notes |
+|---|---|---|
+| `SERVER_STT_ENABLED` | `false` | Must be `true` to accept audio. |
+| `WHISPER_BIN` | `/app/bin/whisper-cli` | Built by `server/Dockerfile`. |
+| `WHISPER_MODEL` | `/app/models/ggml-base.bin` | Downloaded at Docker build time. |
+| `STT_TIMEOUT_MS` | `20000` | Per-clip server timeout. |
+
+Audio is accepted only with explicit `audioConsent=true`, limited to 1.5MB,
+stored only as a temp file, and deleted after transcription. Logs are metadata
+only; transcript is cached by `uid + sha256(audio)` in Firestore for 30 days.
 
 ## Entitlement model
 
