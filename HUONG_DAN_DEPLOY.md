@@ -65,12 +65,12 @@ Railway là dịch vụ "máy chủ thuê" miễn phí/giá rẻ để chạy se
 3. Nếu lần đầu, Railway xin quyền xem GitHub → bấm **"Configure GitHub App"** → chọn repo **EnglishMind** → **Save**.
 4. Quay lại Railway, chọn đúng repo **EnglishMind** trong danh sách.
 
-### C3. ⚠️ QUAN TRỌNG: Root Directory = `server`
-Code backend nằm trong thư mục **`server/`** (giống monorepo Android).
+### C3. ⚠️ QUAN TRỌNG: chỉ định thư mục `server`
+Vì repo có cả app Android lẫn server, phải nói cho Railway biết chạy thư mục `server`:
 1. Sau khi chọn repo, Railway tạo 1 "service". Bấm vào service đó.
 2. Vào tab **"Settings"**.
-3. **Root Directory** → gõ: `server` → lưu.
-4. **Start Command:** `npm start` (hoặc để Railway đọc `server/railway.json`).
+3. Tìm mục **"Root Directory"** (Thư mục gốc) → bấm sửa → gõ: `server` → lưu.
+4. Tìm mục **"Start Command"** (Lệnh khởi động). Nếu trống, gõ: `npm start` → lưu.
 
 > Lúc này Railway có thể báo deploy lỗi vì **chưa có biến môi trường** — bình thường, ta làm tiếp Phần D.
 
@@ -172,7 +172,7 @@ Bấm **"Publish"** để lưu.
 | App báo lỗi AI / không phản hồi | Kiểm tra đã nhập đúng **URL SERVER MỚI** trong Settings chưa (E1); thử lại `/healthz`. |
 | AI báo hết lượt dù chưa dùng | Kiểm tra `PRO_PROXY_DAILY_LIMIT` (nên là `1000`). |
 | AI không chạy với tài khoản của bạn | Kiểm tra đã tạo đúng `users/{UID}/tier/current` với `tier="PRO"` (E2) chưa. |
-| Deploy đỏ `server does not exist` | Chưa pull repo mới — cần commit có thư mục `server/`. Root Directory = `server`, Start `npm start`. |
+| Deploy đỏ (Failed) trên Railway | Kiểm tra **Root Directory = `server`** và **Start Command = `npm start`** (C3). |
 
 > Nếu vẫn kẹt: chụp màn hình phần log đỏ trên Railway và phần Variables (che bớt giá trị bí mật), gửi lại để được hỗ trợ.
 

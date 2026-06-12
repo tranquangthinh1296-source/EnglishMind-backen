@@ -133,3 +133,22 @@ Env vars:
 
 Security per §8.4: zod validation, helmet, rate limit, 64kb body cap on /v1,
 no raw-body logging, no stacktraces in responses.
+
+## STT server-side (VOICE-STT-SERVER-1 — Q6 owner 2026-06-12)
+
+Whisper.cpp chạy trên server, model KHÔNG đóng vào APK. Endpoint `POST /api/stt/transcribe`
+(Firebase auth + consent riêng + cache Firestore `sttCache/{uid}_{sha256}`).
+
+Env cần để bật (mặc định TẮT — fail-closed):
+
+| Env | Giá trị |
+|---|---|
+| `SERVER_STT_ENABLED` | `true` |
+| `WHISPER_BIN` | đường dẫn binary `whisper-cli` (build từ ggerganov/whisper.cpp) |
+| `WHISPER_MODEL` | đường dẫn model, khuyến nghị `ggml-base-q5_1.bin` (~60MB) |
+| `STT_TIMEOUT_MS` | tùy chọn, default 20000 |
+
+Deploy Railway: cần Dockerfile cài binary + tải model lúc build (KHÔNG commit model vào repo).
+**Bắt buộc benchmark trước khi bật:** nếu >5s/clip 10s trên Railway shared CPU → chuyển model
+`tiny-q5_1` hoặc queue async. Body request: `{ audioBase64, language: "vi"|"en"|"auto", audioConsent: true }`.
+Privacy: audio ghi file tạm, xóa ngay sau transcribe; log metadata-only.

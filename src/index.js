@@ -14,6 +14,7 @@ try { require("dotenv").config(); } catch { /* dotenv optional */ }
 const express = require("express");
 const helmet = require("helmet");
 const aiRoutes = require("./routes/ai");
+const sttRoutes = require("./routes/stt"); // VOICE-STT-SERVER-1 (Q6): whisper.cpp server-side, default OFF
 const adminDiagnosticsRoutes = require("./routes/adminDiagnostics");
 const contentRoutes = require("./routes/content");
 const trialRoutes = require("./routes/trial");
@@ -32,6 +33,7 @@ app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 // All app endpoints are namespaced under /api.
 app.use("/api", aiRoutes);
+app.use("/api", sttRoutes);
 app.use("/api", adminDiagnosticsRoutes);
 app.use("/api", trialRoutes);
 app.use("/api", contentRoutes);
