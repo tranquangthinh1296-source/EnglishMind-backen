@@ -14,7 +14,7 @@ FROM node:20-bookworm-slim
 ARG STT_MODEL_URL=https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -30,5 +30,7 @@ RUN mkdir -p /app/models \
 ENV WHISPER_BIN=/app/bin/whisper-cli
 ENV WHISPER_MODEL=/app/models/ggml-base.bin
 ENV STT_ENGINE=whisper
+# Set SERVER_STT_ENABLED=true in Railway Variables after Docker deploy succeeds.
+ENV SERVER_STT_ENABLED=false
 
 CMD ["npm", "start"]

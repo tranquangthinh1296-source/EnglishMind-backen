@@ -35,6 +35,15 @@ function logSttMeta({ uid, plan, bytes, language, cacheHit, success, errorCode, 
   );
 }
 
+router.get("/stt/status", (_req, res) => {
+  res.json({
+    success: true,
+    enabled: isSttEnabled(),
+    configured: isEngineConfigured(),
+    engine: process.env.STT_ENGINE || "whisper",
+  });
+});
+
 router.post("/stt/transcribe", verifyAuth, async (req, res) => {
   const started = Date.now();
   const { audioBase64, language = "auto", audioConsent = false } = req.body || {};

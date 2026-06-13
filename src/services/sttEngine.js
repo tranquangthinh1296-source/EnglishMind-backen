@@ -52,13 +52,45 @@ function validateSttRequest({ audioBuffer, language, audioConsent }) {
 /**
  * Chạy whisper.cpp trên file wav tạm; xóa file ngay sau khi xong (privacy —
  * audio không bao giờ ghi bền trên server, chỉ transcript vào cache).
+ * App gửi AAC/m4a — ffmpeg chuyển sang wav 16k mono trước khi transcribe.
  */
+function isWavBuffer(buf) {
+  return buf.length >= 12
+    && buf.toString("ascii", 0, 4) === "RIFF"
+    && buf.toString("ascii", 8, 12) === "WAVE";
+}
+
+async function normalizeAudioForWhisper(audioBuffer) {
+  if (isWavBuffer(audioBuffer)) return audioBuffer;
+  const ffmpeg = process.env.FFMPEG_BIN || "ffmpeg";
+  const inFile = path.join(os.tmpdir(), `stt_in_${crypto.randomUUID()}.m4a`);
+  const outFile = path.join(os.tmpdir(), `stt_out_${crypto.randomUUID()}.wav`);
+  await fs.writeFile(inFile, audioBuffer);
+  try {
+    await new Promise((resolve, reject) => {
+      const child = spawn(ffmpeg, [
+        "-y", "-i", inFile, "-ar", "16000", "-ac", "1", "-f", "wav", outFile,
+      ], { stdio: "ignore" });
+      child.on("error", reject);
+      child.on("close", (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`ffmpeg_exit_${code}`));
+      });
+    });
+    return await fs.readFile(outFile);
+  } finally {
+    await fs.unlink(inFile).catch(() => {});
+    await fs.unlink(outFile).catch(() => {});
+  }
+}
+
 async function transcribeWithWhisper(audioBuffer, language = "auto") {
   const bin = process.env.WHISPER_BIN;
   const model = process.env.WHISPER_MODEL;
   const timeoutMs = Number(process.env.STT_TIMEOUT_MS || 20000);
+  const wavBuffer = await normalizeAudioForWhisper(audioBuffer);
   const tmpFile = path.join(os.tmpdir(), `stt_${crypto.randomUUID()}.wav`);
-  await fs.writeFile(tmpFile, audioBuffer);
+  await fs.writeFile(tmpFile, wavBuffer);
   try {
     const args = ["-m", model, "-f", tmpFile, "--no-timestamps", "--output-json", "false"];
     if (language && language !== "auto") args.push("-l", language);

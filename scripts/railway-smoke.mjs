@@ -80,6 +80,13 @@ await run("GET /api/voice-pack/signed-url fake token → 401", async () => {
   return r;
 });
 
+await run("GET /api/stt/status", async () => {
+  const r = await req("GET", "/api/stt/status");
+  if (r.status !== 200) throw new Error(`expected 200 got ${r.status}`);
+  if (typeof r.body.enabled !== "boolean") throw new Error("missing enabled flag");
+  return r;
+});
+
 const betaKey = process.env.BETA_OPS_API_SECRET;
 if (betaKey) {
   await run("POST /v1/ai/can-use with beta key", async () => {
@@ -99,5 +106,12 @@ const voiceStatic = tests.find((t) => t.name.includes("voice-pack-v1.zip"));
 const failed = tests.filter((t) => !t.ok);
 console.log("\n--- Summary ---");
 console.log(`Voice pack static: ${voiceStatic?.ok ? `OK (${voiceStatic.body?.sizeBytes ?? "?"} bytes)` : voiceStatic?.error ?? "NOT TESTED"}`);
+const sttStatus = tests.find((t) => t.name.includes("stt/status"));
+if (sttStatus?.ok) {
+  const stt = sttStatus.body;
+  console.log(`Server STT: enabled=${stt.enabled}, configured=${stt.configured}, engine=${stt.engine}`);
+} else {
+  console.log(`Server STT: ${sttStatus?.error ?? "NOT TESTED"}`);
+}
 console.log(`AI-SAFE deployed: ${adminTest?.status === 404 ? "NO (admin route 404 — redeploy commit 6bbfa58+)" : adminTest?.status === 401 || adminTest?.status === 403 ? "LIKELY YES" : "UNKNOWN"}`);
 process.exit(failed.length ? 1 : 0);

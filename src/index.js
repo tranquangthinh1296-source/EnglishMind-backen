@@ -9,6 +9,8 @@
 //        /v1/ai/can-use, /v1/ai/record-usage → Beta Ops (B1, beta-key auth, PostgreSQL)
 //   GET  /healthz                   → health check
 //   GET  /static/voice-packs/*      → OTA voice pack zips (VOICE-PACK-1D, no Firebase Storage)
+//   GET  /api/stt/status            → STT enabled/configured (public metadata)
+//   POST /api/stt/transcribe        → whisper.cpp server-side STT (VOICE-STT-SERVER-1)
 // Load .env locally if dotenv is present; on Railway env vars are injected.
 try { require("dotenv").config(); } catch { /* dotenv optional */ }
 
@@ -16,7 +18,7 @@ const express = require("express");
 const helmet = require("helmet");
 const path = require("path");
 const aiRoutes = require("./routes/ai");
-const sttRoutes = require("./routes/stt"); // VOICE-STT-SERVER-1 (Q6): whisper.cpp server-side, default OFF
+const sttRoutes = require("./routes/stt"); // VOICE-STT-SERVER-1: whisper.cpp server-side
 const voicePackRoutes = require("./routes/voicePack"); // VOICE-PACK-1D
 const adminDiagnosticsRoutes = require("./routes/adminDiagnostics");
 const contentRoutes = require("./routes/content");
@@ -24,6 +26,7 @@ const trialRoutes = require("./routes/trial");
 const betaOpsRoutes = require("./routes/betaOps");
 
 const app = express();
+app.set("trust proxy", 1);
 app.use(helmet());
 
 // Beta Ops mounts BEFORE the global 2mb parser so its own 64kb limit applies to /v1.
