@@ -2,6 +2,7 @@ const express = require("express");
 const { verifyAuth } = require("../middleware/verifyAuth");
 const { checkQuota } = require("../middleware/checkQuota");
 const { generate, MODEL } = require("../gemini");
+const { recordSuccess, recordFailure, getStats, getSuccessRate } = require("../services/gatewayStats");
 
 const router = express.Router();
 
@@ -43,6 +44,7 @@ router.post("/ai/generate", verifyAuth, checkQuota, async (req, res) => {
       await req.incrementDailyStats({ cacheMisses: 1 });
     }
     const latencyMs = Date.now() - started;
+    recordSuccess();
     logAiCallMeta({
       taskType,
       plan: req.plan,
@@ -62,6 +64,7 @@ router.post("/ai/generate", verifyAuth, checkQuota, async (req, res) => {
       await req.incrementDailyStats({ upstreamErrorCount: 1, cacheMisses: 1 });
     }
     const latencyMs = Date.now() - started;
+    recordFailure(e.message);
     const errorCode = e.status === 429 ? "ai_upstream_error" : "ai_upstream_error";
     logAiCallMeta({
       taskType,
@@ -79,6 +82,20 @@ router.post("/ai/generate", verifyAuth, checkQuota, async (req, res) => {
       errorMessage: "Cô Vy đang mất kết nối với AI. Anh vẫn có thể học bài đã lưu offline.",
     });
   }
+});
+
+router.get("/gateway/status", (_req, res) => {
+  const stats = getStats();
+  res.json({
+    success: true,
+    model: stats.model,
+    region: stats.region,
+    successRate: getSuccessRate(),
+    totalCalls: stats.successCount + stats.failCount,
+    successCount: stats.successCount,
+    failCount: stats.failCount,
+    lastError: stats.lastError || null,
+  });
 });
 
 module.exports = router;
