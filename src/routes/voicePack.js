@@ -15,11 +15,20 @@ function packConfig(kind) {
     (fallbackPrefix ? process.env[`${fallbackPrefix}_${key}`] : null) ||
     fallback;
 
+  const base =
+    process.env.RAILWAY_STATIC_URL ||
+    "https://englishmind-backen-production.up.railway.app";
   const packId = isVosk ? "englishmind_vosk_pack_v1" : "englishmind_whisper_pack_v1";
   const engine = isVosk ? "vosk" : "whisper";
-  const publicUrl = read("PUBLIC_URL");
-  const sha256 = read("SHA256");
-  const sizeBytes = Number(read("SIZE_BYTES", "0"));
+  const zipName = isVosk ? "vosk-pack-v1.zip" : "whisper-pack-v1.zip";
+  const defaultSha = isVosk
+    ? "00f3344821ef85eb02105854b10946402812458b9be400dd95cb5ef73627a06a"
+    : "8daf470b60871c4dc86fac18f0296bcb6a6dc2913e6a8e11528550f21ca3971b";
+  const defaultSize = isVosk ? 289 : 315;
+
+  const publicUrl = read("PUBLIC_URL", `${base}/static/voice-packs/${zipName}`);
+  const sha256 = read("SHA256", defaultSha);
+  const sizeBytes = Number(read("SIZE_BYTES", String(defaultSize)));
   const version = read("VERSION", "v1");
 
   return {
