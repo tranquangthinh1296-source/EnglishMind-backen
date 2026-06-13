@@ -2,8 +2,31 @@ const express = require("express");
 const { verifyAuth } = require("../middleware/verifyAuth");
 const { checkQuota } = require("../middleware/checkQuota");
 const { generate, MODEL } = require("../gemini");
+const gatewayStats = require("../services/gatewayStats");
 
 const router = express.Router();
+
+function deployRegion() {
+  return (
+    process.env.RAILWAY_REGION ||
+    process.env.DEPLOY_REGION ||
+    process.env.RAILWAY_ENVIRONMENT_REGION ||
+    "unknown"
+  );
+}
+
+// Public metadata for Beta Diagnostics (no auth — no secrets).
+router.get("/gateway/status", (_req, res) => {
+  const stats = gatewayStats.snapshot();
+  res.json({
+    ok: true,
+    model: MODEL,
+    region: deployRegion(),
+    successRate: stats.successRate,
+    sampleSize: stats.totalCalls,
+    service: "englishmind-ai-gateway",
+  });
+});
 
 function logAiCallMeta({ taskType, plan, quotaCost, success, errorCode, latencyMs, cacheHit = false }) {
   console.log(
@@ -43,6 +66,7 @@ router.post("/ai/generate", verifyAuth, checkQuota, async (req, res) => {
       await req.incrementDailyStats({ cacheMisses: 1 });
     }
     const latencyMs = Date.now() - started;
+    gatewayStats.recordCall(true);
     logAiCallMeta({
       taskType,
       plan: req.plan,
@@ -63,6 +87,7 @@ router.post("/ai/generate", verifyAuth, checkQuota, async (req, res) => {
     }
     const latencyMs = Date.now() - started;
     const errorCode = e.status === 429 ? "ai_upstream_error" : "ai_upstream_error";
+    gatewayStats.recordCall(false);
     logAiCallMeta({
       taskType,
       plan: req.plan,

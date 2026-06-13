@@ -19,6 +19,11 @@ router.get("/health", (_req, res) => {
     ok: true,
     service: "englishmind-beta-ops",
     env: process.env.RAILWAY_ENVIRONMENT_NAME || process.env.NODE_ENV || "dev",
+    region:
+      process.env.RAILWAY_REGION ||
+      process.env.DEPLOY_REGION ||
+      process.env.RAILWAY_ENVIRONMENT_REGION ||
+      "unknown",
   });
 });
 
@@ -263,6 +268,49 @@ router.post("/v1/ai/can-use", async (req, res) => {
       });
     },
     () => res.json({ ok: true, allowed: true, remaining: null, reason: "guard_unavailable" })
+  );
+});
+
+// --- POST /v1/ai/usage-summary — device daily usage for Beta Diagnostics cost panel ---
+router.post("/v1/ai/usage-summary", async (req, res) => {
+  const data = parseBody(usageSchema, req, res);
+  if (!data) return;
+  await withDb(
+    res,
+    async (pool) => {
+      const day = serverDay();
+      const { rows } = await pool.query(
+        `SELECT request_count, denied_count, first_request_at, last_request_at
+         FROM ai_usage_daily WHERE usage_date = $1 AND device_hash = $2`,
+        [day, data.deviceHash]
+      );
+      const row = rows[0] || {};
+      const requests = row.request_count || 0;
+      const denied = row.denied_count || 0;
+      const inputTokensEst = requests * 1500;
+      const outputTokensEst = requests * 900;
+      const estimatedCostUsd = Number((requests * 0.004).toFixed(4));
+      res.json({
+        ok: true,
+        usageDate: day,
+        requestCount: requests,
+        deniedCount: denied,
+        inputTokensEst,
+        outputTokensEst,
+        estimatedCostUsd,
+      });
+    },
+    () =>
+      res.json({
+        ok: true,
+        usageDate: serverDay(),
+        requestCount: 0,
+        deniedCount: 0,
+        inputTokensEst: 0,
+        outputTokensEst: 0,
+        estimatedCostUsd: 0,
+        guardUnavailable: true,
+      })
   );
 });
 
