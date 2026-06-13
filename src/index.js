@@ -66,8 +66,8 @@ app.use((err, _req, res, _next) => {
 const PORT = process.env.PORT || 8080;
 const SHUTDOWN_GRACE_MS = Number(process.env.SHUTDOWN_GRACE_MS || 25_000);
 
-const server = app.listen(PORT, () => {
-  console.log(`EnglishMind backend listening on :${PORT}`);
+const server = app.listen(PORT, "0.0.0.0", () => {
+  console.log(`EnglishMind backend listening on 0.0.0.0:${PORT}`);
 });
 
 function shutdown(signal) {
