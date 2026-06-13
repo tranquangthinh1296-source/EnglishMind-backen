@@ -22,6 +22,7 @@ const trialRoutes = require("./routes/trial");
 const betaOpsRoutes = require("./routes/betaOps");
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(helmet());
 
 // Beta Ops mounts BEFORE the global 2mb parser so its own 64kb limit applies to /v1.
