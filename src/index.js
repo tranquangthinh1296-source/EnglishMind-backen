@@ -11,6 +11,7 @@
 //   GET  /static/voice-packs/*      → OTA voice pack zips (VOICE-PACK-1D, no Firebase Storage)
 //   GET  /api/stt/status            → STT enabled/configured (public metadata)
 //   POST /api/stt/transcribe        → whisper.cpp server-side STT (VOICE-STT-SERVER-1)
+//   POST /api/billing/verify        → Play Store purchase verification (PAYMENTS-SECURITY-1)
 // Load .env locally if dotenv is present; on Railway env vars are injected.
 try { require("dotenv").config(); } catch { /* dotenv optional */ }
 
@@ -24,6 +25,7 @@ const adminDiagnosticsRoutes = require("./routes/adminDiagnostics");
 const contentRoutes = require("./routes/content");
 const trialRoutes = require("./routes/trial");
 const betaOpsRoutes = require("./routes/betaOps");
+const billingRoutes = require("./routes/billing");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -48,6 +50,7 @@ app.use(
 );
 
 // All app endpoints are namespaced under /api.
+app.use("/api", billingRoutes);
 app.use("/api", aiRoutes);
 app.use("/api", sttRoutes);
 app.use("/api", voicePackRoutes);
