@@ -1,11 +1,11 @@
 {
-    "versionCode":  5,
-    "versionName":  "1.0.2-beta.5",
+    "versionCode":  6,
+    "versionName":  "1.0.2-beta.6",
     "apkUrl":  "https://englishmind-backen-production.up.railway.app/static/app/app-sideload-release.apk",
-    "sha256":  "c0d4ec9adc6ad5661cd9d5882a42efe7118e119e0c077261cf4aadd25ed231e6",
+    "sha256":  "346072b8e9db845443e8bf7e30a18e07794925b1c51ae5f3664732dafcc55b3e",
     "sizeBytes":  45481787,
     "forceUpdate":  false,
-    "releaseNotes":  "Owner deploy 2026-07-04",
+    "releaseNotes":  "Owner release 2026-07-04: sync main + Railway/Firebase redeploy + app polish",
     "playBetaUrl":  "",
     "updatedAt":  "2026-07-04"
 }
