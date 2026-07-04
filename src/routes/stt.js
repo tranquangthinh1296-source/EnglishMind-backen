@@ -4,7 +4,11 @@
 // log metadata-only (KHÔNG log transcript/audio).
 const express = require("express");
 const { verifyAuth } = require("../middleware/verifyAuth");
+const { appCheckMonitor } = require("../middleware/appCheck");
+const { costGuard } = require("../middleware/costGuard");
+const { createIpLimiter, createUidLimiter } = require("../middleware/rateLimits");
 const { db } = require("../firebase");
+const { getCached, setCached } = require("../cache");
 const {
   isSttEnabled,
   isEngineConfigured,
@@ -14,9 +18,12 @@ const {
 } = require("../services/sttEngine");
 
 const router = express.Router();
+const sttIpLimiter = createIpLimiter();
+const sttUidLimiter = createUidLimiter("RATE_STT_UID_5M", 10);
 
 const CACHE_COLLECTION = "sttCache";
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 ngày
+const REDIS_TTL_SECONDS = parseInt(process.env.REDIS_STT_CACHE_TTL_SECONDS || String(7 * 24 * 60 * 60), 10);
 
 function logSttMeta({ uid, plan, bytes, language, cacheHit, success, errorCode, latencyMs }) {
   console.log(
@@ -44,7 +51,14 @@ router.get("/stt/status", (_req, res) => {
   });
 });
 
-router.post("/stt/transcribe", verifyAuth, async (req, res) => {
+router.post(
+  "/stt/transcribe",
+  sttIpLimiter,
+  appCheckMonitor(),
+  verifyAuth,
+  sttUidLimiter,
+  costGuard,
+  async (req, res) => {
   const started = Date.now();
   const { audioBase64, language = "auto", audioConsent = false } = req.body || {};
 
@@ -72,14 +86,35 @@ router.post("/stt/transcribe", verifyAuth, async (req, res) => {
   }
 
   const key = cacheKey(req.uid, audioBuffer);
+  const redisKey = `stt:${key}`;
   const docRef = db.collection(CACHE_COLLECTION).doc(key);
 
   try {
+    const redisCached = await getCached(redisKey);
+    if (redisCached && typeof redisCached.transcript === "string") {
+      logSttMeta({
+        uid: req.uid, plan: req.plan, bytes: audioBuffer.length, language,
+        cacheHit: true, success: true, latencyMs: Date.now() - started,
+      });
+      return res.json({
+        success: true,
+        transcript: redisCached.transcript,
+        cached: true,
+        engine: redisCached.engine || "whisper.cpp",
+      });
+    }
+
     const cached = await docRef.get();
     if (cached.exists) {
       const data = cached.data();
       const fresh = Date.now() - (data.createdAt || 0) < CACHE_TTL_MS;
       if (fresh && typeof data.transcript === "string") {
+        setCached(redisKey, {
+          transcript: data.transcript,
+          engine: data.engine || "whisper.cpp",
+          language: data.language || language,
+          createdAt: data.createdAt || Date.now(),
+        }, REDIS_TTL_SECONDS).catch(() => {});
         logSttMeta({
           uid: req.uid, plan: req.plan, bytes: audioBuffer.length, language,
           cacheHit: true, success: true, latencyMs: Date.now() - started,
@@ -102,13 +137,17 @@ router.post("/stt/transcribe", verifyAuth, async (req, res) => {
 
   try {
     const { transcript, engine } = await transcribeWithWhisper(audioBuffer, language);
-    await docRef.set({
+    const cachePayload = {
       transcript,
       engine,
       language,
       audioBytes: audioBuffer.length,
       createdAt: Date.now(),
-    }).catch(() => {});
+    };
+    await Promise.all([
+      docRef.set(cachePayload).catch(() => {}),
+      setCached(redisKey, cachePayload, REDIS_TTL_SECONDS).catch(() => {}),
+    ]);
     logSttMeta({
       uid: req.uid, plan: req.plan, bytes: audioBuffer.length, language,
       cacheHit: false, success: true, latencyMs: Date.now() - started,

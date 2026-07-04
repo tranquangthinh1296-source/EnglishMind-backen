@@ -54,16 +54,34 @@ await run("POST /api/ai/generate fake token → 401", async () => {
 });
 await run("GET /api/admin/ai-diagnostics no token", () => req("GET", "/api/admin/ai-diagnostics"));
 
-await run("GET /static/voice-packs/voice-pack-v1.zip", async () => {
-  const res = await fetch(`${BASE}/static/voice-packs/voice-pack-v1.zip`);
+await run("GET /static/voice-packs/vosk-pack-v1.zip", async () => {
+  const res = await fetch(`${BASE}/static/voice-packs/vosk-pack-v1.zip`);
   if (res.status !== 200) throw new Error(`expected 200 got ${res.status}`);
   const buf = await res.arrayBuffer();
   const size = buf.byteLength;
-  if (size < 50) throw new Error(`zip too small: ${size} bytes`);
+  if (size < 5_000_000) throw new Error(`vosk zip too small: ${size} bytes (expected real model)`);
   return {
     status: res.status,
     body: { sizeBytes: size, contentType: res.headers.get("content-type") },
   };
+});
+
+await run("GET /static/voice-packs/voice-pack-v1.zip (legacy mock)", async () => {
+  const res = await fetch(`${BASE}/static/voice-packs/voice-pack-v1.zip`);
+  if (res.status !== 200) throw new Error(`expected 200 got ${res.status}`);
+  const buf = await res.arrayBuffer();
+  const size = buf.byteLength;
+  return {
+    status: res.status,
+    body: { sizeBytes: size, contentType: res.headers.get("content-type") },
+  };
+});
+
+await run("GET /static/app/manifest.json", async () => {
+  const r = await req("GET", "/static/app/manifest.json");
+  if (r.status !== 200) throw new Error(`expected 200 got ${r.status}`);
+  if (typeof r.body.versionCode !== "number") throw new Error("manifest missing versionCode");
+  return r;
 });
 
 await run("GET /api/voice-pack/signed-url no token → 401", async () => {
@@ -102,10 +120,12 @@ if (betaKey) {
 }
 
 const adminTest = tests.find((t) => t.name.includes("admin"));
+const voskStatic = tests.find((t) => t.name.includes("vosk-pack-v1.zip"));
 const voiceStatic = tests.find((t) => t.name.includes("voice-pack-v1.zip"));
 const failed = tests.filter((t) => !t.ok);
 console.log("\n--- Summary ---");
-console.log(`Voice pack static: ${voiceStatic?.ok ? `OK (${voiceStatic.body?.sizeBytes ?? "?"} bytes)` : voiceStatic?.error ?? "NOT TESTED"}`);
+console.log(`Vosk pack static: ${voskStatic?.ok ? `OK (${voskStatic.body?.sizeBytes ?? "?"} bytes)` : voskStatic?.error ?? "NOT TESTED"}`);
+console.log(`Legacy voice pack: ${voiceStatic?.ok ? `OK (${voiceStatic.body?.sizeBytes ?? "?"} bytes)` : voiceStatic?.error ?? "NOT TESTED"}`);
 const sttStatus = tests.find((t) => t.name.includes("stt/status"));
 if (sttStatus?.ok) {
   const stt = sttStatus.body;

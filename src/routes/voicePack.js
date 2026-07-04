@@ -1,4 +1,5 @@
-// VOICE-PACK-1D — signed URL + manifest for OTA voice pack download (Whisper required, Vosk optional).
+// VOICE-PACK-1D — signed URL + manifest for OTA voice pack download.
+// Beta policy 2026-06-15: Vosk is the active pack path; Whisper is research-only.
 const express = require("express");
 const crypto = require("crypto");
 const { verifyAuth } = require("../middleware/verifyAuth");
@@ -44,14 +45,37 @@ function packConfig(kind) {
   };
 }
 
+function resolveRequestedKind(value) {
+  const normalized = String(value || "").toLowerCase().trim();
+  return normalized || "vosk";
+}
+
+function isKindEnabledForBeta(kind) {
+  if (kind === "vosk") {
+    return process.env.VOICE_PACK_ENABLED === "true" &&
+      process.env.VOICE_PACK_VOSK_ENABLED === "true";
+  }
+  if (kind === "whisper") {
+    return process.env.VOICE_PACK_ENABLED === "true" &&
+      process.env.VOICE_PACK_WHISPER_ENABLED === "true";
+  }
+  return false;
+}
+
 router.get("/voice-pack/signed-url", verifyAuth, async (req, res) => {
   const enabled = process.env.VOICE_PACK_ENABLED === "true";
   if (!enabled) {
     return res.status(503).json({ success: false, error: "voice_pack_disabled" });
   }
 
-  const kind = String(req.query.kind || "whisper").toLowerCase();
-  if (kind === "vosk" && process.env.VOICE_PACK_VOSK_ENABLED === "false") {
+  const kind = resolveRequestedKind(req.query.kind);
+  if (!["vosk", "whisper"].includes(kind)) {
+    return res.status(400).json({ success: false, error: "unsupported_voice_pack", kind });
+  }
+  if (kind === "whisper" && !isKindEnabledForBeta(kind)) {
+    return res.status(503).json({ success: false, error: "whisper_deferred" });
+  }
+  if (kind === "vosk" && !isKindEnabledForBeta(kind)) {
     return res.status(503).json({ success: false, error: "vosk_pack_disabled" });
   }
 
@@ -62,7 +86,7 @@ router.get("/voice-pack/signed-url", verifyAuth, async (req, res) => {
   }
 
   const version = String(req.query.version || "v1");
-  const manifest = { ...packConfig(kind === "vosk" ? "vosk" : "whisper"), version };
+  const manifest = { ...packConfig(kind), version };
   if (!manifest.downloadUrl || !manifest.sha256 || manifest.sizeBytes <= 0) {
     return res.status(503).json({ success: false, error: "voice_pack_not_configured", kind });
   }
@@ -96,3 +120,5 @@ router.get("/voice-pack/signed-url", verifyAuth, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.resolveRequestedKind = resolveRequestedKind;
+module.exports.isKindEnabledForBeta = isKindEnabledForBeta;

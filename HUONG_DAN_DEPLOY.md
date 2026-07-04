@@ -87,12 +87,13 @@ Vì repo có cả app Android lẫn server, phải nói cho Railway biết chạ
 | Tên biến (Name) | Giá trị (Value) |
 |---|---|
 | `GEMINI_API_KEY` | Dán chuỗi `AIzaSy...` (từ Phần A) |
-| `GEMINI_MODEL` | `gemini-2.0-flash` |
+| `GEMINI_MODEL` | `gemini-2.5-flash-lite` |
+| `GEMINI_MODEL_FALLBACK` | `gemini-2.5-flash` |
 | `FIREBASE_SERVICE_ACCOUNT` | Dán **toàn bộ nội dung json** (từ Phần B) |
 | `PRO_PROXY_DAILY_LIMIT` | `1000` |
 | `QUOTA_TIMEZONE` | `Asia/Ho_Chi_Minh` |
 | `CONTENT_UPSTREAM_URL` | `https://englishmind-content.up.railway.app` |
-| `TRIAL_SIGNING_SECRET` | Tự gõ một chuỗi bí mật bất kỳ, ví dụ `emind-secret-2026-xyz` |
+| `TRIAL_HMAC_SECRET` | Tự gõ một chuỗi bí mật bất kỳ, ví dụ `emind-secret-2026-xyz` |
 
 3. Sau khi thêm đủ 7 biến, Railway sẽ **tự deploy lại**. Đợi 1–2 phút.
 4. Khi thấy chữ **"Success"** hoặc đèn xanh là server đã chạy.

@@ -1,1 +1,8 @@
-{"packId":"englishmind_voice_pack_v1","version":"v1","engine":"mock","mockResponseHint":"Hello from EnglishMind voice pack staging"}
+{
+  "packId": "englishmind_voice_pack_v1",
+  "version": "v1",
+  "engine": "mock",
+  "betaStatus": "staging_only",
+  "publicClaimAllowed": false,
+  "mockResponseHint": "Hello from EnglishMind voice pack staging"
+}

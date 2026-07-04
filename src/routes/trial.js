@@ -7,7 +7,11 @@ const { db } = require("../firebase");
 
 const router = express.Router();
 const TRIAL_DAYS = parseInt(process.env.TRIAL_DAYS || "7", 10);
-const SECRET = process.env.TRIAL_SIGNING_SECRET || "change-me";
+const SECRET = process.env.TRIAL_HMAC_SECRET;
+
+if (!SECRET || !SECRET.trim()) {
+  throw new Error("TRIAL_HMAC_SECRET is required");
+}
 
 function sign(installId, expiryDate, isActive) {
   return crypto

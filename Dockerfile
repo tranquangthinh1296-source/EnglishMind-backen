@@ -30,6 +30,7 @@ RUN mkdir -p /app/models \
 ENV WHISPER_BIN=/app/bin/whisper-cli
 ENV WHISPER_MODEL=/app/models/ggml-base.bin
 ENV STT_ENGINE=whisper
+ENV NODE_ENV=production
 # Set SERVER_STT_ENABLED=true in Railway Variables after Docker deploy succeeds.
 ENV SERVER_STT_ENABLED=false
 

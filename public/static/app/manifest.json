@@ -1,0 +1,11 @@
+{
+  "versionCode": 4,
+  "versionName": "1.0.2-beta.4",
+  "apkUrl": "https://englishmind-backen-production.up.railway.app/static/app/app-sideload-release.apk",
+  "sha256": "26d373cf5b22889bce13aa502cd11a6572ca447ab61bbb715ab4e3a43da1062a",
+  "sizeBytes": 45414485,
+  "forceUpdate": false,
+  "releaseNotes": "Sửa auth bootstrap, an toàn migration DB, hội thoại kịch bản Cô Vy, đồng bộ bền vững.",
+  "playBetaUrl": "",
+  "updatedAt": "2026-07-01"
+}

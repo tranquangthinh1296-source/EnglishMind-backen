@@ -240,7 +240,7 @@ router.post("/v1/admin/feedback-digest", async (req, res) => {
 router.post("/v1/ai/can-use", async (req, res) => {
   const data = parseBody(usageSchema, req, res);
   if (!data) return;
-  const limit = Number(process.env.BETA_DAILY_AI_LIMIT || 50);
+  const limit = Number(process.env.BETA_DAILY_AI_LIMIT || 5);
   await withDb(
     res,
     async (pool) => {

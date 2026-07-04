@@ -1,0 +1,14 @@
+node_modules/
+.env
+serviceAccount.json
+*.log
+.git/
+coverage/
+npm-debug.log
+
+# Skip legacy debug sideload (~66 MB) — release APK is the SSOT for web + OTA.
+public/app/app-debug.apk
+
+# Force-include OTA release binary + manifest (gitignored in repo).
+!public/app/manifest.json
+!public/app/app-sideload-release.apk

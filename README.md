@@ -52,7 +52,7 @@ its path.
    for server-side STT.
 2. Set Variables (from `.env.example`): `GEMINI_API_KEY`, `GEMINI_MODEL`,
    `FIREBASE_SERVICE_ACCOUNT` (paste full JSON), `PRO_PROXY_DAILY_LIMIT`,
-   `QUOTA_TIMEZONE`, `CONTENT_UPSTREAM_URL`, `TRIAL_SIGNING_SECRET`.
+   `QUOTA_TIMEZONE`, `CONTENT_UPSTREAM_URL`, `TRIAL_HMAC_SECRET`.
    Keep `SERVER_STT_ENABLED=false` until the `/api/stt/transcribe` benchmark is
    under 5s for short clips; then set it to `true`.
 3. Start command: `npm start` (Railway auto-detects). `PORT` is injected.

@@ -1,1 +1,11 @@
-{"packId":"englishmind_vosk_pack_v1","version":"v1","engine":"vosk","executionMode":"on_device","languageProfile":"vi-en-mixed","modelSubdir":"models","description":"Vosk offline STT — tùy chọn"}
+{
+  "packId": "englishmind_vosk_pack_v1",
+  "version": "v1",
+  "engine": "vosk",
+  "executionMode": "on_device",
+  "languageProfile": "en-us",
+  "modelSubdir": "models",
+  "betaStatus": "production",
+  "publicClaimAllowed": false,
+  "description": "Vosk small-en-us offline STT. Flip RC voice_pack_vosk_verified after device proof."
+}

@@ -1,0 +1,7 @@
+{
+  "sha256": "9a879e1bfd357bc2b581b7f25d295393bd55fb322ad819d64d8c7530a5b5941b",
+  "sizeBytes": 41183354,
+  "builtAt": "2026-06-22T00:57:17.462Z",
+  "modelUrl": "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip",
+  "publicUrl": "https://englishmind-backen-production.up.railway.app/static/voice-packs/vosk-pack-v1.zip"
+}

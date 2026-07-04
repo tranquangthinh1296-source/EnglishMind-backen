@@ -1,5 +1,6 @@
 const { describe, it, after } = require("node:test");
 const assert = require("node:assert/strict");
+const { resolveRequestedKind, isKindEnabledForBeta } = require("../src/routes/voicePack");
 
 describe("voice pack signed-url (VOICE-PACK-1D)", () => {
   const env = { ...process.env };
@@ -27,5 +28,22 @@ describe("voice pack signed-url (VOICE-PACK-1D)", () => {
     assert.ok(manifest.downloadUrl.startsWith("https://"));
     assert.ok(manifest.sha256.length > 0);
     assert.ok(manifest.sizeBytes > 0);
+  });
+
+  it("defaults signed-url requests to Vosk for beta", () => {
+    assert.equal(resolveRequestedKind(undefined), "vosk");
+    assert.equal(resolveRequestedKind(""), "vosk");
+  });
+
+  it("keeps Whisper disabled unless research env explicitly enables it", () => {
+    delete process.env.VOICE_PACK_WHISPER_ENABLED;
+    process.env.VOICE_PACK_ENABLED = "true";
+    process.env.VOICE_PACK_VOSK_ENABLED = "true";
+
+    assert.equal(isKindEnabledForBeta("vosk"), true);
+    assert.equal(isKindEnabledForBeta("whisper"), false);
+
+    process.env.VOICE_PACK_WHISPER_ENABLED = "true";
+    assert.equal(isKindEnabledForBeta("whisper"), true);
   });
 });

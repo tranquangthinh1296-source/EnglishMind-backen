@@ -1,9 +1,11 @@
 {
-  "versionCode": 3,
-  "versionName": "1.0.2-beta",
-  "apkUrl": "/static/app/app-debug.apk",
-  "sha256": "6cecbd4e46bfc2de1b0896d4cb8b3f0d3f068dffe3b662a1a72f2a39d4f3867b",
-  "sizeBytes": 65973185,
-  "forceUpdate": false,
-  "releaseNotes": "BETA-FINAL-1 internal owner beta"
+    "versionCode":  5,
+    "versionName":  "1.0.2-beta.5",
+    "apkUrl":  "https://englishmind-backen-production.up.railway.app/static/app/app-sideload-release.apk",
+    "sha256":  "c0d4ec9adc6ad5661cd9d5882a42efe7118e119e0c077261cf4aadd25ed231e6",
+    "sizeBytes":  45481787,
+    "forceUpdate":  false,
+    "releaseNotes":  "Owner deploy 2026-07-04",
+    "playBetaUrl":  "",
+    "updatedAt":  "2026-07-04"
 }

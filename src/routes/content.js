@@ -2,10 +2,88 @@
 // Auto-seeds curriculum structure from built-in topic data on first run.
 // Architecture: Firestore is source of truth; no CONTENT_UPSTREAM_URL needed.
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const { db } = require("../firebase");
 const { generate } = require("../gemini");
+const { verifyAuth } = require("../middleware/verifyAuth");
+const { requireAdmin } = require("../middleware/requireAdmin");
+const { costGuard } = require("../middleware/costGuard");
+const { createUidLimiter } = require("../middleware/rateLimits");
 
 const router = express.Router();
+const towerUidLimiter = createUidLimiter("RATE_TOWER_UID_5M", 20);
+
+const contentWriteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: Number(process.env.CONTENT_WRITE_RATE_LIMIT || 30),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: "rate_limited" },
+});
+
+function normalizeWordParam(raw) {
+  const value = String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^[^a-z0-9'-]+|[^a-z0-9'-]+$/g, "");
+  if (!/^[a-z][a-z'-]{0,63}$/.test(value)) return null;
+  return value;
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isSafeId(value, max = 128) {
+  return typeof value === "string" && value.length > 0 && value.length <= max && /^[A-Za-z0-9_.:-]+$/.test(value);
+}
+
+function isFiniteInteger(value, min, max) {
+  return Number.isInteger(value) && value >= min && value <= max;
+}
+
+function validateProgressBody(body) {
+  if (!isPlainObject(body)) return { ok: false, error: "invalid_body" };
+  if (!isSafeId(body.lessonId)) return { ok: false, error: "invalid_lesson_id" };
+  if (typeof body.status !== "string" || body.status.length < 1 || body.status.length > 32) {
+    return { ok: false, error: "invalid_status" };
+  }
+  if (!isFiniteInteger(body.score, 0, 100)) return { ok: false, error: "invalid_score" };
+  if (!Number.isFinite(body.timestamp) || body.timestamp <= 0) {
+    return { ok: false, error: "invalid_timestamp" };
+  }
+  return { ok: true };
+}
+
+function validateLessonBody(body) {
+  if (!isPlainObject(body)) return { ok: false, error: "invalid_body" };
+  if (!isSafeId(body.id)) return { ok: false, error: "invalid_lesson_id" };
+  if (!isFiniteInteger(body.level, 1, 100)) return { ok: false, error: "invalid_level" };
+  if (typeof body.title !== "string" || body.title.length < 1 || body.title.length > 200) {
+    return { ok: false, error: "invalid_title" };
+  }
+  if (typeof body.lessonType !== "string" || body.lessonType.length < 1 || body.lessonType.length > 64) {
+    return { ok: false, error: "invalid_lesson_type" };
+  }
+  if (!isFiniteInteger(body.durationMin, 1, 240)) return { ok: false, error: "invalid_duration" };
+  if (!isFiniteInteger(body.passingScore, 0, 100)) return { ok: false, error: "invalid_passing_score" };
+  if (typeof body.cefrLevel !== "string" || body.cefrLevel.length < 1 || body.cefrLevel.length > 16) {
+    return { ok: false, error: "invalid_cefr_level" };
+  }
+  if (body.contentJson != null && !isPlainObject(body.contentJson)) {
+    return { ok: false, error: "invalid_content_json" };
+  }
+  if (body.conceptsJson != null && !Array.isArray(body.conceptsJson)) {
+    return { ok: false, error: "invalid_concepts_json" };
+  }
+  if (body.vocabJson != null && !Array.isArray(body.vocabJson)) {
+    return { ok: false, error: "invalid_vocab_json" };
+  }
+  if (body.quizJson != null && !isPlainObject(body.quizJson)) {
+    return { ok: false, error: "invalid_quiz_json" };
+  }
+  return { ok: true };
+}
 
 // ── Seed data (mirrors app assets) ────────────────────────────────────────────
 
@@ -138,7 +216,16 @@ router.get("/curricula", async (_req, res) => {
   await ensureSeeded();
   try {
     const snap = await db.collection("curricula").get();
-    const data = snap.docs.map(d => d.data());
+    const data = snap.docs
+      .map(d => d.data())
+      .filter(item =>
+        typeof item.id === "string" &&
+        typeof item.domain === "string" &&
+        typeof item.title === "string" &&
+        typeof item.description === "string" &&
+        Number.isInteger(item.totalUnits) &&
+        Number.isInteger(item.version)
+      );
     res.json(data);
   } catch (e) {
     console.error("[content] GET /curricula:", e.message);
@@ -185,15 +272,20 @@ router.get("/vocabulary", async (req, res) => {
 });
 
 router.get("/word/:word", async (req, res) => {
+  const word = normalizeWordParam(req.params.word);
+  if (!word) {
+    return res.status(400).json({ success: false, error: "invalid_word" });
+  }
+
   try {
-    const doc = await db.collection("words").doc(req.params.word.toLowerCase()).get();
-    if (!doc.exists) return res.status(404).json({ success: false, error: "not_found" });
+    const doc = await db.collection("words").doc(word).get();
+    if (!doc.exists) return res.status(404).json({ success: false, error: "not_found", word });
     res.json(doc.data());
   } catch (e) {
+    console.error("[content] GET /word:", e.message);
     res.status(500).json({ success: false, error: "firestore_error" });
   }
 });
-
 // ── Vocab Tower: on-demand floor generation ──────────────────────────────────
 // Each floor is generated ONCE (one Gemini call), cached in Firestore
 // `tower_floors/{mode}_{floor}` and served to every user from then on.
@@ -298,7 +390,7 @@ async function generateTowerFloor(towerMode, floorNumber) {
     `${mix}\n` +
     `Mỗi unit có nghĩa tiếng Việt tự nhiên, IPA, câu ví dụ thực tế EN + bản dịch VI. Không trùng lặp nội dung.`;
 
-  const text = await generate({
+  const { text } = await generate({
     prompt,
     systemInstruction:
       "Bạn là chuyên gia thiết kế giáo trình tiếng Anh cho người Việt. Trả về JSON đúng schema.",
@@ -328,7 +420,7 @@ async function generateTowerFloor(towerMode, floorNumber) {
 // De-duplicate concurrent generation requests for the same floor.
 const towerGenInFlight = new Map();
 
-router.get("/v1/tower/:towerMode/:floorNumber", async (req, res) => {
+router.get("/v1/tower/:towerMode/:floorNumber", verifyAuth, towerUidLimiter, costGuard, async (req, res) => {
   const towerMode = req.params.towerMode;
   const floorNumber = parseInt(req.params.floorNumber, 10);
   if (!TOWER_THEMES[towerMode] || !(floorNumber >= 1 && floorNumber <= 100)) {
@@ -358,23 +450,44 @@ router.get("/v1/tower/:towerMode/:floorNumber", async (req, res) => {
   }
 });
 
-router.post("/progress", async (req, res) => {
+router.post("/progress", contentWriteLimiter, verifyAuth, async (req, res) => {
+  const validation = validateProgressBody(req.body);
+  if (!validation.ok) {
+    return res.status(400).json({ success: false, error: validation.error });
+  }
+
   try {
-    await db.collection("progress").add({ ...req.body, serverTimestamp: Date.now() });
+    const { lessonId, status, score, timestamp } = req.body;
+    await db.collection("progress").add({
+      uid: req.uid,
+      lessonId,
+      status,
+      score,
+      timestamp,
+      serverTimestamp: Date.now(),
+    });
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ success: false, error: "firestore_error" });
   }
 });
 
-router.post("/lesson", async (req, res) => {
+router.post("/lesson", contentWriteLimiter, verifyAuth, requireAdmin, async (req, res) => {
+  const validation = validateLessonBody(req.body);
+  if (!validation.ok) {
+    return res.status(400).json({ success: false, error: validation.error });
+  }
+
   try {
-    const lesson = req.body || {};
-    if (lesson.id) {
-      await db.collection("lessons").doc(lesson.id).set(lesson, { merge: true });
-    } else {
-      await db.collection("lessons").add(lesson);
-    }
+    const lesson = req.body;
+    await db.collection("lessons").doc(lesson.id).set(
+      {
+        ...lesson,
+        updatedBy: req.uid,
+        serverTimestamp: Date.now(),
+      },
+      { merge: true },
+    );
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ success: false, error: "firestore_error" });
@@ -382,3 +495,4 @@ router.post("/lesson", async (req, res) => {
 });
 
 module.exports = router;
+module.exports.normalizeWordParam = normalizeWordParam;

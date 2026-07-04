@@ -1,1 +1,11 @@
-{"packId":"englishmind_whisper_pack_v1","version":"v1","engine":"whisper","executionMode":"server","languageProfile":"vi-en-mixed","modelSubdir":"models","description":"Whisper STT via Railway — bắt buộc cho nhận diện nâng cao"}
+{
+  "packId": "englishmind_whisper_pack_v1",
+  "version": "v1",
+  "engine": "whisper",
+  "executionMode": "server",
+  "languageProfile": "vi-en-mixed",
+  "modelSubdir": "models",
+  "betaStatus": "deferred_research",
+  "publicClaimAllowed": false,
+  "description": "Whisper/server STT is deferred research and is not used for beta."
+}

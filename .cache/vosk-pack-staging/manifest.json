@@ -1,0 +1,11 @@
+{
+  "packId": "englishmind_vosk_pack_v1",
+  "version": "v1",
+  "engine": "vosk",
+  "executionMode": "on_device",
+  "languageProfile": "en-us",
+  "modelSubdir": "models",
+  "betaStatus": "production",
+  "publicClaimAllowed": false,
+  "description": "Vosk small-en-us offline STT for EnglishMind beta."
+}
