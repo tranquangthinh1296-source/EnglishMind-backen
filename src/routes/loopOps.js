@@ -22,6 +22,21 @@ function requireBridge(req, res, next) {
 
 const ALLOWED_COMMANDS = new Set(["chat", "steer", "pause", "resume", "start", "stop", "quota_watch"]);
 
+async function readAdminLoopPayload() {
+  const [status, messages, pendingCommands, commands] = await Promise.all([
+    loopOps.readStatus(),
+    loopOps.listMessages(50),
+    loopOps.listPendingCommands(),
+    loopOps.listCommands(20),
+  ]);
+  return { status, messages, pendingCommands, commands };
+}
+
+function writeSseEvent(res, event, data) {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
 router.post("/loop/bridge/sync", requireBridge, async (req, res) => {
   try {
     const body = req.body || {};
@@ -68,19 +83,42 @@ router.post("/loop/bridge/ack", requireBridge, async (req, res) => {
 
 router.get("/admin/loop/status", requireAdmin, async (_req, res) => {
   try {
-    const [status, messages, commands] = await Promise.all([
-      loopOps.readStatus(),
-      loopOps.listMessages(50),
-      loopOps.listPendingCommands(),
-    ]);
-    return res.json({
-      success: true,
-      data: { status, messages, pendingCommands: commands },
-    });
+    return res.json({ success: true, data: await readAdminLoopPayload() });
   } catch (e) {
     console.error("[admin/loop/status]", e.message);
     return res.status(503).json({ success: false, error: "loop_status_unavailable" });
   }
+});
+
+router.get("/admin/loop/stream", requireAdmin, async (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+
+  let closed = false;
+  let tick = null;
+  req.on("close", () => {
+    closed = true;
+    if (tick) clearInterval(tick);
+  });
+
+  const sendSnapshot = async () => {
+    if (closed) return;
+    try {
+      writeSseEvent(res, "snapshot", await readAdminLoopPayload());
+    } catch (e) {
+      console.error("[admin/loop/stream]", e.message);
+      writeSseEvent(res, "error", { error: "loop_stream_unavailable" });
+    }
+  };
+
+  await sendSnapshot();
+  tick = setInterval(() => {
+    if (closed) return;
+    writeSseEvent(res, "heartbeat", { at: new Date().toISOString() });
+    sendSnapshot();
+  }, 8_000);
 });
 
 router.post("/admin/loop/command", requireAdmin, async (req, res) => {

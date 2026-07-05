@@ -24,6 +24,7 @@ const path = require("path");
 const aiRoutes = require("./routes/ai");
 const sttRoutes = require("./routes/stt"); // VOICE-STT-SERVER-1: whisper.cpp server-side
 const voicePackRoutes = require("./routes/voicePack"); // VOICE-PACK-1D
+const voiceLiveRoutes = require("./routes/voiceLive");
 const adminDiagnosticsRoutes = require("./routes/adminDiagnostics");
 const loopOpsRoutes = require("./routes/loopOps");
 const opsTrackRoutes = require("./routes/opsTrack");
@@ -82,6 +83,7 @@ app.use("/api", aiRoutes);
 app.use("/api", opsTrackRoutes);
 app.use("/api", sttRoutes);
 app.use("/api", voicePackRoutes);
+app.use("/api", voiceLiveRoutes.router);
 app.use("/api", adminDiagnosticsRoutes);
 app.use("/api", loopOpsRoutes);
 app.use("/api", trialRoutes);
@@ -106,6 +108,8 @@ const SHUTDOWN_GRACE_MS = Number(process.env.SHUTDOWN_GRACE_MS || 25_000);
 const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`EnglishMind backend listening on 0.0.0.0:${PORT}`);
 });
+
+voiceLiveRoutes.attachUpgrade(server);
 
 costEstimator.restoreDailyCostFromFirestore().catch(() => {});
 

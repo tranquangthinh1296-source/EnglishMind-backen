@@ -2,3 +2,7 @@ node_modules/
 .env
 serviceAccount.json
 *.log
+# Release binaries — local build / Railway upload only (never commit)
+public/app/*.apk
+public/app/*.aab
+public/static/app/*.apk

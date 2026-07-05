@@ -133,6 +133,11 @@ async function listPendingCommands() {
   return d.pendingCommands.filter((c) => c.status === "pending");
 }
 
+async function listCommands(limit = MAX_PENDING) {
+  const d = await readDoc();
+  return d.pendingCommands.slice(-limit);
+}
+
 async function ackCommands(ids, result = "done") {
   if (!ids.length) return;
   const ref = docRef();
@@ -155,6 +160,7 @@ module.exports = {
   appendMessage,
   listMessages,
   enqueueCommand,
+  listCommands,
   listPendingCommands,
   ackCommands,
   setStoreForTest,

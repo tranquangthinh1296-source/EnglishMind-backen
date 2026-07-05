@@ -1,0 +1,205 @@
+{
+  "generatedAt": "2026-07-05T04:02:28.872Z",
+  "sources": {
+    "versionProperties": "app\\version.properties",
+    "releaseManifest": "web\\public\\static\\app\\manifest.json",
+    "acquisitionReport": "docs\\data-room\\FINAL_ACQUISITION_REPORT.md",
+    "overrides": "web\\public\\static\\platform\\surface-status.overrides.json"
+  },
+  "release": {
+    "versionCode": 6,
+    "versionName": "1.0.2-beta.6",
+    "apkUrl": "",
+    "sha256": "",
+    "sizeBytes": 0,
+    "releaseNotes": "Owner release 2026-07-04: sync main + Railway/Firebase redeploy + app polish",
+    "playBetaUrl": "",
+    "updatedAt": "2026-07-04"
+  },
+  "urls": {
+    "acquire": "https://englishmind-acquire-production.up.railway.app/acquire",
+    "web": "https://englishmind-web-production.up.railway.app",
+    "api": "https://englishmind-backen-production.up.railway.app/healthz"
+  },
+  "status": {
+    "reportDate": "2026-07-01",
+    "readinessOverall": 9.4,
+    "readinessLabel": "9.4 / 10",
+    "readinessNote": "Phase 2 · P0 fixes + god-file split · TL audit pending",
+    "previousReadiness": 9.3,
+    "dataRoomDocCount": 41,
+    "testMethodsAndroid": 302,
+    "testMethodsServer": 94,
+    "governedPrompts": "P00–P24",
+    "roomEntities": 32,
+    "platformSpecLines": 1472,
+    "restEndpoints": 39,
+    "replacementCostUsd": "$82,500",
+    "engineeringHours": 1290,
+    "askingPriceUsd": "$30,000",
+    "grossRevenueShareFirst24Months": "10%",
+    "grossRevenueShareOngoing": "5%",
+    "versionName": "1.0.2-beta.6",
+    "versionCode": 6,
+    "releaseApkMb": 43.37,
+    "releaseAabMb": 0,
+    "lastDeploy": "2026-07-05",
+    "apiHealthP50Ms": 406
+  },
+  "scores": [
+    {
+      "c": "Documentation",
+      "v": 9.5,
+      "e": "38+ data room docs, task board, TL request",
+      "h": "exc"
+    },
+    {
+      "c": "Release artifacts",
+      "v": 9.5,
+      "e": "APK 43.31 MB + AAB 26.81 MB + SHA256 in bundle",
+      "h": "exc"
+    },
+    {
+      "c": "Architecture",
+      "v": 9,
+      "e": "ARCHITECTURE.md + SVG diagrams",
+      "h": "exc"
+    },
+    {
+      "c": "Deployment",
+      "v": 9,
+      "e": "3 Railway services Online, Firestore deploy",
+      "h": "exc"
+    },
+    {
+      "c": "Repository",
+      "v": 9.2,
+      "e": "README, LICENSE, cleanup, scripts",
+      "h": "exc"
+    },
+    {
+      "c": "Security",
+      "v": 8.5,
+      "e": "SECRET_AUDIT, rules deployed, no prod secrets in git",
+      "h": "good"
+    },
+    {
+      "c": "Commercial readiness",
+      "v": 7.5,
+      "e": "Pre-revenue disclosed; Play HOLD documented",
+      "h": "med"
+    },
+    {
+      "c": "Business docs",
+      "v": 8,
+      "e": "Valuation, Flippa draft, investor deck",
+      "h": "good"
+    },
+    {
+      "c": "Buyer confidence",
+      "v": 9.2,
+      "e": "Live /acquire, FAQ, demo assets on prod",
+      "h": "exc"
+    },
+    {
+      "c": "IP completeness",
+      "v": 9,
+      "e": "LICENSE, prompt inventory, PLATFORM_SPEC",
+      "h": "exc"
+    }
+  ],
+  "systemStatus": [
+    {
+      "lab": "Backend API",
+      "val": "Healthy",
+      "amber": false
+    },
+    {
+      "lab": "Web App Lite",
+      "val": "Live",
+      "amber": false
+    },
+    {
+      "lab": "Acquisition room",
+      "val": "Live",
+      "amber": false
+    },
+    {
+      "lab": "AI gateway",
+      "val": "Running",
+      "amber": false
+    },
+    {
+      "lab": "Firebase",
+      "val": "Operational",
+      "amber": false
+    },
+    {
+      "lab": "Firestore rules",
+      "val": "Deployed",
+      "amber": false
+    },
+    {
+      "lab": "Release APK / AAB",
+      "val": "Built",
+      "amber": false
+    },
+    {
+      "lab": "CI · GitHub Actions",
+      "val": "Passing",
+      "amber": false
+    },
+    {
+      "lab": "TL audit",
+      "val": "Pending",
+      "amber": true
+    },
+    {
+      "lab": "Play internal beta",
+      "val": "Link via env",
+      "amber": true
+    }
+  ],
+  "transferSteps": [
+    {
+      "t": "NDA",
+      "d": "Mutual NDA opens the room",
+      "key": "nda"
+    },
+    {
+      "t": "Data room",
+      "d": "41+ documents + buyer zip",
+      "key": "room"
+    },
+    {
+      "t": "Demo",
+      "d": "Live /acquire + product walkthrough",
+      "key": "demo"
+    },
+    {
+      "t": "Technical review",
+      "d": "TL audit · your engineers",
+      "key": "review"
+    },
+    {
+      "t": "Offer",
+      "d": "Terms and price agreed",
+      "key": "offer"
+    },
+    {
+      "t": "Escrow",
+      "d": "Funds + keystore held",
+      "key": "escrow"
+    },
+    {
+      "t": "Transfer",
+      "d": "Repo · Firebase · Play · Railway",
+      "key": "transfer"
+    },
+    {
+      "t": "30-day support",
+      "d": "Founder handover",
+      "key": "support"
+    }
+  ]
+}

@@ -1,6 +1,10 @@
 // Quick auth-key smoke test — no secrets logged.
 const key = process.env.GEMINI_API_KEY;
 if (!key) {
+  if (process.env.NODE_TEST_CONTEXT) {
+    console.log("GEMINI_API_KEY not set; skipping manual Gemini smoke under node --test");
+    process.exit(0);
+  }
   console.error("GEMINI_API_KEY not set");
   process.exit(1);
 }
